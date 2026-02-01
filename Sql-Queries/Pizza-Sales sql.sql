@@ -16,7 +16,7 @@ CREATE TABLE pizza_sales (
 select * from pizza_sales
 
 --Total Revenue
-SELECT SUM(total_price) AS Total_revenu
+SELECT SUM(total_price) AS Total_revenue
 FROM pizza_sales
 
 --2. Average Order Value
