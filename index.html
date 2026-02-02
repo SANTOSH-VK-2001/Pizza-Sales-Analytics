@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -23,6 +24,259 @@
                 }
             }
         }
+    </script>
+    
+    <script>
+        // CSV Parsing Function using PapaParse
+        async function loadCSV(filePath) {
+            try {
+                const response = await fetch(filePath);
+                const csvText = await response.text();
+                const results = Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: false,
+                    skipEmptyLines: true
+                });
+                return results.data;
+            } catch (error) {
+                console.error(`Error loading ${filePath}:`, error);
+                return [];
+            }
+        }
+
+        // Load CSV Files and Initialize Charts
+        async function initializeDashboard() {
+            // Load all CSV files
+            const [kpiRevenue, kpiOrders, kpiTotalPizzas, kpiAvgOrder, kpiAvgPizzasPerOrder,
+                    dailyTrend, hourlyTrend, categoryPercentage, sizePercentage,
+                    topSellers, bottomSellers, totalByCategory] = await Promise.all([
+                'Sql-Output-csv/KPI/Total-Revenue.csv',
+                'Sql-Output-csv/KPI/Total-Orders.csv',
+                'Sql-Output-csv/KPI/Total-Pizzas-Sold.csv',
+                'Sql-Output-csv/KPI/Average-order-value.csv',
+                'Sql-Output-csv/KPI/Average-Pizzas-per-order.csv',
+                'Sql-Output-csv/Trend/Daily Trend for Total Orders.csv',
+                'Sql-Output-csv/Trend/Hourly Trend for Orders.csv',
+                'Sql-Output-csv/Trend/Percentage of Sales by Pizza Category.csv',
+                'Sql-Output-csv/Trend/Percentage of Sales by Pizza Size.csv',
+                'Sql-Output-csv/Trend/Top 5 Best Sellers by Total Pizzas Sold.csv',
+                'Sql-Output-csv/Trend/Bottom 5 Best Sellers by Total Pizzas Sold.csv',
+                'Sql-Output-csv/Trend/Total Pizzas Sold by Pizza Category.csv'
+            ].map(loadCSV));
+
+            // Extract KPI values
+            const totalRevenue = kpiRevenue.length > 0 ? kpiRevenue[0].total_revenu : '0';
+            const totalOrders = kpiOrders.length > 0 ? kpiOrders[0].total_orders : '0';
+            const totalPizzas = kpiTotalPizzas.length > 0 ? kpiTotalPizzas[0].total_pizza_sales : '0';
+            const avgOrder = kpiAvgOrder.length > 0 ? parseFloat(kpiAvgOrder[0].average_order_value).toFixed(2) : '0';
+            const avgPizzasPerOrder = kpiAvgPizzasPerOrder.length > 0 ? kpiAvgPizzasPerOrder[0].avg_pizzas_per_order : '0';
+
+            // Extract chart data
+            const dailyLabels = dailyTrend.map(d => d.order_day);
+            const dailyData = dailyTrend.map(d => parseInt(d.total_order));
+
+            const hourlyLabels = hourlyTrend.map(h => h.order_hours + ':00');
+            const hourlyData = hourlyTrend.map(h => parseInt(h.total_order));
+
+            const catLabels = categoryPercentage.map(c => c.pizza_category);
+            const catData = categoryPercentage.map(c => parseFloat(c.pct));
+
+            const sizeLabels = sizePercentage.map(s => s.pizza_size);
+            const sizeData = sizePercentage.map(s => parseFloat(s.pct));
+
+            const topPizzaLabels = topSellers.map(p => p.pizza_name.replace('The ', '').replace(' Pizza', ''));
+            const topPizzaSold = topSellers.map(p => parseInt(p.total_pizza_sold));
+
+            const bottomPizzaLabels = bottomSellers.map(p => p.pizza_name.replace('The ', '').replace(' Pizza', ''));
+            const bottomPizzaSold = bottomSellers.map(p => parseInt(p.total_pizza_sold));
+
+            const categoryQtyLabels = totalByCategory.map(c => c.pizza_category);
+            const categoryQtyData = totalByCategory.map(c => parseInt(c.total_quantity_sold));
+
+            // Update KPI Cards
+            document.querySelector('[data-kpi="revenue"]').textContent = '$' + parseFloat(totalRevenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.querySelector('[data-kpi="orders"]').textContent = parseInt(totalOrders).toLocaleString();
+            document.querySelector('[data-kpi="pizzas"]').textContent = parseInt(totalPizzas).toLocaleString();
+            document.querySelector('[data-kpi="avg-order"]').textContent = '$' + parseFloat(avgOrder).toFixed(2);
+            document.querySelector('[data-kpi="avg-pizzas"]').textContent = avgPizzasPerOrder;
+
+            // Initialize Charts
+            initializeCharts(dailyLabels, dailyData, hourlyLabels, hourlyData, catLabels, catData, 
+                           sizeLabels, sizeData, topPizzaLabels, topPizzaSold, bottomPizzaLabels, bottomPizzaSold,
+                           categoryQtyLabels, categoryQtyData);
+        }
+
+        function initializeCharts(dailyLabels, dailyData, hourlyLabels, hourlyData, catLabels, catData, 
+                                sizeLabels, sizeData, topPizzaLabels, topPizzaSold, bottomPizzaLabels, bottomPizzaSold,
+                                categoryQtyLabels, categoryQtyData) {
+            Chart.register(ChartDataLabels);
+
+            const baseOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
+                    datalabels: {
+                        color: '#FFF',
+                        font: { weight: 'bold', size: 12 },
+                        formatter: (value) => value.toLocaleString()
+                    }
+                }
+            };
+
+            // 1. Daily Chart (Bar)
+            new Chart(document.getElementById('dailyChart'), {
+                type: 'bar',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: 'Total Orders',
+                        data: dailyData,
+                        backgroundColor: '#BC4749',
+                        borderRadius: 8
+                    }]
+                },
+                options: baseOptions
+            });
+
+            // 2. Hourly Chart (Line)
+            new Chart(document.getElementById('hourlyChart'), {
+                type: 'line',
+                data: {
+                    labels: hourlyLabels,
+                    datasets: [{
+                        label: 'Orders',
+                        data: hourlyData,
+                        borderColor: '#386641',
+                        backgroundColor: '#38664122',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#386641'
+                    }]
+                },
+                options: {
+                    ...baseOptions,
+                    plugins: { ...baseOptions.plugins, datalabels: { display: false } }
+                }
+            });
+
+            // 3. Category Chart (Doughnut)
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catData,
+                        backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373'],
+                        borderWidth: 5,
+                        borderColor: '#FFF'
+                    }]
+                },
+                options: {
+                    ...baseOptions,
+                    plugins: {
+                        ...baseOptions.plugins,
+                        datalabels: { formatter: (v) => v + '%' }
+                    }
+                }
+            });
+
+            // 4. Size Chart (Pie)
+            new Chart(document.getElementById('sizeChart'), {
+                type: 'pie',
+                data: {
+                    labels: sizeLabels,
+                    datasets: [{
+                        data: sizeData,
+                        backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373', '#6A040F']
+                    }]
+                },
+                options: {
+                    ...baseOptions,
+                    plugins: {
+                        ...baseOptions.plugins,
+                        datalabels: { formatter: (v) => v + '%' }
+                    }
+                }
+            });
+
+            // 5. Top Sellers Chart (Horizontal Bar)
+            new Chart(document.getElementById('topSellersChart'), {
+                type: 'bar',
+                data: {
+                    labels: topPizzaLabels,
+                    datasets: [{
+                        label: 'Pizzas Sold',
+                        data: topPizzaSold,
+                        backgroundColor: '#D4A373',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
+                        datalabels: { 
+                            color: '#FFF',
+                            font: { weight: 'bold', size: 12 },
+                            anchor: 'center', 
+                            align: 'center',
+                            formatter: (value) => value.toLocaleString()
+                        }
+                    }
+                }
+            });
+
+            // 6. Bottom Sellers Chart (Horizontal Bar)
+            new Chart(document.getElementById('bottomSellersChart'), {
+                type: 'bar',
+                data: {
+                    labels: bottomPizzaLabels,
+                    datasets: [{
+                        label: 'Pizzas Sold',
+                        data: bottomPizzaSold,
+                        backgroundColor: '#FFB703',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
+                        datalabels: { 
+                            color: '#FFF',
+                            font: { weight: 'bold', size: 12 },
+                            anchor: 'center', 
+                            align: 'center',
+                            formatter: (value) => value.toLocaleString()
+                        }
+                    }
+                }
+            });
+
+            // 7. Category Quantity Chart (Bar)
+            new Chart(document.getElementById('categoryQtyChart'), {
+                type: 'bar',
+                data: {
+                    labels: categoryQtyLabels,
+                    datasets: [{
+                        label: 'Pizzas Sold',
+                        data: categoryQtyData,
+                        backgroundColor: '#386641',
+                        borderRadius: 8
+                    }]
+                },
+                options: baseOptions
+            });
+        }
+
+        // Initialize dashboard when page loads
+        window.addEventListener('DOMContentLoaded', initializeDashboard);
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
@@ -55,23 +309,23 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             <div class="bg-white border-b-4 border-tomato p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
                 <p class="text-xs font-bold text-tomato uppercase mb-1">Total Revenue</p>
-                <h2 class="text-3xl font-extrabold">$817,860.05</h2>
+                <h2 class="text-3xl font-extrabold" data-kpi="revenue">$0</h2>
             </div>
             <div class="bg-white border-b-4 border-cheese p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
                 <p class="text-xs font-bold text-cheese uppercase mb-1">Total Orders</p>
-                <h2 class="text-3xl font-extrabold">21,350</h2>
+                <h2 class="text-3xl font-extrabold" data-kpi="orders">0</h2>
             </div>
             <div class="bg-white border-b-4 border-crust p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
                 <p class="text-xs font-bold text-crust uppercase mb-1">Total Pizzas Sold</p>
-                <h2 class="text-3xl font-extrabold">49,574</h2>
+                <h2 class="text-3xl font-extrabold" data-kpi="pizzas">0</h2>
             </div>
             <div class="bg-white border-b-4 border-basil p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
                 <p class="text-xs font-bold text-basil uppercase mb-1">Avg Order Value</p>
-                <h2 class="text-3xl font-extrabold">$38.31</h2>
+                <h2 class="text-3xl font-extrabold" data-kpi="avg-order">$0</h2>
             </div>
             <div class="bg-white border-b-4 border-pepperoni p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
                 <p class="text-xs font-bold text-pepperoni uppercase mb-1">Avg Pizzas/Order</p>
-                <h2 class="text-3xl font-extrabold">2.32</h2>
+                <h2 class="text-3xl font-extrabold" data-kpi="avg-pizzas">0</h2>
             </div>
         </div>
 
@@ -115,6 +369,23 @@
                 </div>
             </div>
 
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30 lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-black text-tomato">Bottom 5 Least Selling Pizzas</h3>
+                    <span class="bg-pepperoni text-white text-xs font-bold px-3 py-1 rounded-full uppercase">By Quantity Sold</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="bottomSellersChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30 lg:col-span-2">
+                <h3 class="text-xl font-black mb-6 text-tomato border-b border-dough pb-2">Total Pizzas Sold by Category</h3>
+                <div class="chart-container">
+                    <canvas id="categoryQtyChart"></canvas>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -122,139 +393,5 @@
         <p>© 2024 Pizza Analytics Dashboard • Data Architecture by Santosh Khatate</p>
     </footer>
 
-    <script>
-        // Register the DataLabels plugin
-        Chart.register(ChartDataLabels);
-
-        // --- Data from CSV Files ---
-        const dailyLabels = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-        const dailyData = [2624, 2794, 2973, 3024, 3239, 3538, 3158];
-
-        const hourlyLabels = ["9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"];
-        const hourlyData = [1, 8, 1231, 2520, 2455, 1472, 1468, 1920, 2336, 2399, 2009, 1642, 1198, 663, 28];
-
-        const catLabels = ["Classic", "Supreme", "Chicken", "Veggie"];
-        const catData = [26.91, 25.46, 23.96, 23.68];
-
-        const sizeLabels = ["L", "M", "S", "XL", "XXL"];
-        const sizeData = [45.89, 30.49, 21.77, 1.72, 0.12];
-
-        const topPizzaLabels = ["Classic Deluxe", "Barbecue Chicken", "Hawaiian", "Pepperoni", "Thai Chicken"];
-        const topPizzaSold = [2453, 2432, 2422, 2418, 2371];
-
-        // --- Chart Configurations ---
-
-        const baseOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
-                datalabels: {
-                    color: '#FFF',
-                    font: { weight: 'bold', size: 12 },
-                    formatter: (value) => value.toLocaleString()
-                }
-            }
-        };
-
-        // 1. Daily Chart (Bar)
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'bar',
-            data: {
-                labels: dailyLabels,
-                datasets: [{
-                    label: 'Total Orders',
-                    data: dailyData,
-                    backgroundColor: '#BC4749',
-                    borderRadius: 8
-                }]
-            },
-            options: baseOptions
-        });
-
-        // 2. Hourly Chart (Line)
-        new Chart(document.getElementById('hourlyChart'), {
-            type: 'line',
-            data: {
-                labels: hourlyLabels,
-                datasets: [{
-                    label: 'Orders',
-                    data: hourlyData,
-                    borderColor: '#386641',
-                    backgroundColor: '#38664122',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#386641'
-                }]
-            },
-            options: {
-                ...baseOptions,
-                plugins: { ...baseOptions.plugins, datalabels: { display: false } }
-            }
-        });
-
-        // 3. Category Chart (Doughnut)
-        new Chart(document.getElementById('categoryChart'), {
-            type: 'doughnut',
-            data: {
-                labels: catLabels,
-                datasets: [{
-                    data: catData,
-                    backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373'],
-                    borderWidth: 5,
-                    borderColor: '#FFF'
-                }]
-            },
-            options: {
-                ...baseOptions,
-                plugins: {
-                    ...baseOptions.plugins,
-                    datalabels: { formatter: (v) => v + '%' }
-                }
-            }
-        });
-
-        // 4. Size Chart (Pie)
-        new Chart(document.getElementById('sizeChart'), {
-            type: 'pie',
-            data: {
-                labels: sizeLabels,
-                datasets: [{
-                    data: sizeData,
-                    backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373', '#6A040F']
-                }]
-            },
-            options: {
-                ...baseOptions,
-                plugins: {
-                    ...baseOptions.plugins,
-                    datalabels: { formatter: (v) => v + '%' }
-                }
-            }
-        });
-
-        // 5. Top Sellers Chart (Horizontal Bar)
-        new Chart(document.getElementById('topSellersChart'), {
-            type: 'bar',
-            data: {
-                labels: topPizzaLabels,
-                datasets: [{
-                    label: 'Pizzas Sold',
-                    data: topPizzaSold,
-                    backgroundColor: '#D4A373',
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                ...baseOptions,
-                indexAxis: 'y',
-                plugins: {
-                    ...baseOptions.plugins,
-                    datalabels: { anchor: 'center', align: 'center', color: '#FFF' }
-                }
-            }
-        });
-    </script>
 </body>
 </html>
