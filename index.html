@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Sales Dashboard | Santosh Khatate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        crust: '#D4A373',      // Golden brown
+                        tomato: '#BC4749',     // Pizza Sauce Red
+                        cheese: '#FFB703',     // Cheese Yellow
+                        basil: '#386641',      // Fresh Basil Green
+                        dough: '#FEFAE0',      // Pizza Dough Off-white
+                        pepperoni: '#6A040F',  // Deep Meat Red
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+        body { font-family: 'Poppins', sans-serif; }
+        .chart-container { position: relative; height: 320px; width: 100%; }
+    </style>
+</head>
+<body class="bg-dough text-gray-900">
+
+    <header class="bg-tomato text-white py-6 px-8 shadow-2xl border-b-8 border-crust">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-black tracking-tighter italic">
+                    🍕 PIZZA SALES ANALYTICS
+                </h1>
+                <p class="text-sm font-medium tracking-widest uppercase opacity-90 mt-1">
+                    Annual Performance Report
+                </p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right">
+                <p class="bg-basil px-4 py-2 rounded-lg text-sm font-bold shadow-md inline-block">
+                    Created by: <span class="text-cheese italic">Santosh Khatate</span>
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6 space-y-8">
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div class="bg-white border-b-4 border-tomato p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
+                <p class="text-xs font-bold text-tomato uppercase mb-1">Total Revenue</p>
+                <h2 class="text-3xl font-extrabold">$817,860.05</h2>
+            </div>
+            <div class="bg-white border-b-4 border-cheese p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
+                <p class="text-xs font-bold text-cheese uppercase mb-1">Total Orders</p>
+                <h2 class="text-3xl font-extrabold">21,350</h2>
+            </div>
+            <div class="bg-white border-b-4 border-crust p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
+                <p class="text-xs font-bold text-crust uppercase mb-1">Total Pizzas Sold</p>
+                <h2 class="text-3xl font-extrabold">49,574</h2>
+            </div>
+            <div class="bg-white border-b-4 border-basil p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
+                <p class="text-xs font-bold text-basil uppercase mb-1">Avg Order Value</p>
+                <h2 class="text-3xl font-extrabold">$38.31</h2>
+            </div>
+            <div class="bg-white border-b-4 border-pepperoni p-5 rounded-xl shadow-xl hover:scale-105 transition-transform">
+                <p class="text-xs font-bold text-pepperoni uppercase mb-1">Avg Pizzas/Order</p>
+                <h2 class="text-3xl font-extrabold">2.32</h2>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30">
+                <h3 class="text-xl font-black mb-6 text-tomato border-b border-dough pb-2">Daily Trend for Total Orders</h3>
+                <div class="chart-container">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30">
+                <h3 class="text-xl font-black mb-6 text-tomato border-b border-dough pb-2">Hourly Trend for Orders</h3>
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30">
+                <h3 class="text-xl font-black mb-6 text-tomato border-b border-dough pb-2">% Sales by Pizza Category</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30">
+                <h3 class="text-xl font-black mb-6 text-tomato border-b border-dough pb-2">% Sales by Pizza Size</h3>
+                <div class="chart-container">
+                    <canvas id="sizeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xl border border-crust/30 lg:col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-black text-tomato">Top 5 Best Selling Pizzas</h3>
+                    <span class="bg-cheese text-xs font-bold px-3 py-1 rounded-full uppercase">By Quantity Sold</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="topSellersChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-crust mt-12 py-6 text-center text-pepperoni font-bold">
+        <p>© 2024 Pizza Analytics Dashboard • Data Architecture by Santosh Khatate</p>
+    </footer>
+
+    <script>
+        // Register the DataLabels plugin
+        Chart.register(ChartDataLabels);
+
+        // --- Data from CSV Files ---
+        const dailyLabels = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+        const dailyData = [2624, 2794, 2973, 3024, 3239, 3538, 3158];
+
+        const hourlyLabels = ["9:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"];
+        const hourlyData = [1, 8, 1231, 2520, 2455, 1472, 1468, 1920, 2336, 2399, 2009, 1642, 1198, 663, 28];
+
+        const catLabels = ["Classic", "Supreme", "Chicken", "Veggie"];
+        const catData = [26.91, 25.46, 23.96, 23.68];
+
+        const sizeLabels = ["L", "M", "S", "XL", "XXL"];
+        const sizeData = [45.89, 30.49, 21.77, 1.72, 0.12];
+
+        const topPizzaLabels = ["Classic Deluxe", "Barbecue Chicken", "Hawaiian", "Pepperoni", "Thai Chicken"];
+        const topPizzaSold = [2453, 2432, 2422, 2418, 2371];
+
+        // --- Chart Configurations ---
+
+        const baseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { weight: 'bold' } } },
+                datalabels: {
+                    color: '#FFF',
+                    font: { weight: 'bold', size: 12 },
+                    formatter: (value) => value.toLocaleString()
+                }
+            }
+        };
+
+        // 1. Daily Chart (Bar)
+        new Chart(document.getElementById('dailyChart'), {
+            type: 'bar',
+            data: {
+                labels: dailyLabels,
+                datasets: [{
+                    label: 'Total Orders',
+                    data: dailyData,
+                    backgroundColor: '#BC4749',
+                    borderRadius: 8
+                }]
+            },
+            options: baseOptions
+        });
+
+        // 2. Hourly Chart (Line)
+        new Chart(document.getElementById('hourlyChart'), {
+            type: 'line',
+            data: {
+                labels: hourlyLabels,
+                datasets: [{
+                    label: 'Orders',
+                    data: hourlyData,
+                    borderColor: '#386641',
+                    backgroundColor: '#38664122',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#386641'
+                }]
+            },
+            options: {
+                ...baseOptions,
+                plugins: { ...baseOptions.plugins, datalabels: { display: false } }
+            }
+        });
+
+        // 3. Category Chart (Doughnut)
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catData,
+                    backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373'],
+                    borderWidth: 5,
+                    borderColor: '#FFF'
+                }]
+            },
+            options: {
+                ...baseOptions,
+                plugins: {
+                    ...baseOptions.plugins,
+                    datalabels: { formatter: (v) => v + '%' }
+                }
+            }
+        });
+
+        // 4. Size Chart (Pie)
+        new Chart(document.getElementById('sizeChart'), {
+            type: 'pie',
+            data: {
+                labels: sizeLabels,
+                datasets: [{
+                    data: sizeData,
+                    backgroundColor: ['#BC4749', '#FFB703', '#386641', '#D4A373', '#6A040F']
+                }]
+            },
+            options: {
+                ...baseOptions,
+                plugins: {
+                    ...baseOptions.plugins,
+                    datalabels: { formatter: (v) => v + '%' }
+                }
+            }
+        });
+
+        // 5. Top Sellers Chart (Horizontal Bar)
+        new Chart(document.getElementById('topSellersChart'), {
+            type: 'bar',
+            data: {
+                labels: topPizzaLabels,
+                datasets: [{
+                    label: 'Pizzas Sold',
+                    data: topPizzaSold,
+                    backgroundColor: '#D4A373',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                ...baseOptions,
+                indexAxis: 'y',
+                plugins: {
+                    ...baseOptions.plugins,
+                    datalabels: { anchor: 'center', align: 'center', color: '#FFF' }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
